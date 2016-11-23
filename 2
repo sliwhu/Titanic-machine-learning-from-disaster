@@ -1,0 +1,93 @@
+#What's the distribution of females to males across train & test?
+table(data.combined$Sex)
+
+#Visualiza the 3-way relationship of sex, pclass, and survival, compare to analysis
+ggplot(data.combined[1:891,], aes(x=Sex, fill=Survived))+
+  geom_bar(width=0.5)+
+  facet_wrap(~Pclass)+
+  ggtitle("Pclass")+
+  xlab("Sex")+
+  ylab("Total Count")+
+  labs(fill="Survived")
+
+#Age and sex seem pretty important as derived from analysis of title
+#Look at the distribution of age over entire data set
+summary(data.combined$Age)
+
+
+#Validate that "Master." is a good proxy for male children
+ggplot(data.combined[1:891,], aes(x=Age, fill=Survived)) +
+  facet_wrap(~Sex + Pclass) +
+  geom_histogram(binwidth=10)+
+  xlab("Age")+
+  ylab("Total Count")
+  labs(fill="Survived")
+  
+#Validate that "master." is a good proxy for male childre
+boys <- data.combined[which(data.combined$Title == "Master."),]
+summary(boys$Age)
+
+#We know that"Miss." is more complicated, let's examine further
+misses <- data.combined[which(data.combined$Title == "Miss."), ]
+summary(misses$Age) 
+
+ggplot(misses[misses$Survived!="None",], aes(x=Age, fill=Survived)) +
+  facet_wrap(~Pclass) +
+  geom_histogram(binwidth=10)+
+  ggtitle("Age for Miss. by Pclass")+
+  xlab("Age")+
+  ylab("Total Count")
+  labs(fill="Survived")
+  
+#female children may have different survival rates
+misses.alone <- misses[which(misses$SibSp == 0 & misses$Parch == 0),]
+summary(misses.alone$Age)
+length(which(misses.alone$Age <= 14.5))
+
+#Move on to the sibsp variable, summarize the variable
+summary(data.combined$SibSp)
+
+#Can we treat as a factor
+length(unique(data.combined$SibSp))
+
+data.combined$SibSp <- as.factor(data.combined$SibSp)
+
+#We believe title is predictive, visualize survival rates by sibsop, pclass and title
+ggplot(data.combined[1:891,], aes(x=SibSp, fill=Survived))+
+  geom_bar(width=1)+
+  facet_wrap(~Pclass + Title)+
+  ggtitle("Pclass, Title")+
+  xlab("SibSp")+
+  ylab("Total Count")+
+  ylim(0,300)+
+  labs(fill="Survived")
+
+#Treat the parch variable as a factor and visualiza
+data.combined$Parch <- as.factor(data.combined$Parch)
+ggplot(data.combined[1:891,], aes(x=Parch, fill=Survived))+
+  geom_bar(width=1)+
+  facet_wrap(~Pclass +Title) +
+  ggtitle("Pclass, Title")+
+  xlab("Parch")+
+  ylab("TOtal count")+
+  ylim(0,300)+
+  labs(fill="Survived")
+
+#Let's try some feature engineering. What about creating a family size feature?
+#The reason why not use data.combined is because they were transformed into factor before
+#Here we still want to use integer representation in order to add together to get a total family size
+temp.sibsp <- c(train$SibSp, test$SibSp)
+temp.parch <- c(train$Parch, test$Parch)
+data.combined$Family.size <- as.factor(temp.sibsp + temp.parch +1)
+
+#Visualize it to see if it is predictive
+ggplot(data.combined[1:891,], aes (x=Family.size, fill=Survived)) +
+  geom_bar(width=1)+
+  facet_wrap(~Pclass + Title) +
+  ggtitle("Pclass, Title")+
+  xlab("Family.size")+
+  ylab("Total Count")+
+  ylim(0, 280)+
+  labs(fill="Survived")
+  
+  
