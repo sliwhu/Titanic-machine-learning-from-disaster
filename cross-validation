@@ -1,0 +1,80 @@
+
+#subset our test records and features
+test.submit.df <- data.combined[892:1309, c("Pclass", "Title", "Family.size")]
+
+#make predictions
+rf.5.preds <- predict(rf.5, test.submit.df)
+table(rf.5.preds)
+
+#write out a csv file for submission to kaggle
+submit.df <-data.frame(PassengerID = rep(892:1309), Survived =rf.5.preds)
+write.csv(submit.df, file="RF_SUB_20161128_1.csv", row.names=FALSE)
+
+#My submission scores 0.79426, but the OOB predicts that I should score 0.8159
+#Let's look into cross-validation using the car et package to see if we can get more accurate estimates
+library(caret)
+library(doSNOW)
+
+#Research has shown that 10-fold CV repeated 10 times is the best place to start
+#however there are no hard and fast rules-this is where the experience of the data scientist comes into pla y
+
+#leverage caret to create 100 total folds, but ensure that the raio of these
+#that survived and perished in each fold matches the overall training set. This
+#is known as a stratified cross validation and generallhy provides better results
+
+set.seed(2348)
+cv.10.folds <- createMultiFolds(rf.label, k=10, times=10)  
+
+#check stratification
+table(rf.label)
+342/549
+
+
+table(rf.label[cv.10.folds[[33]]])
+
+#set up caret's traincontrol object per above (train model using repeated cross-validation)
+ctrl.1 <- trainControl(method = "repeatedcv", number=10, repeats=10, index=cv.10.folds)
+
+#set up doSnow package for multi-core training, this is helpful as we're going to 
+#be training a lot of trees
+cl <- makeCluster(6, type="SOCK")
+registerDoSNOW(cl)
+
+#set sed for reproducibility and train, trcontrol means how you gonna train your data
+install.packages('e1071', dependencies=TRUE)
+set.seed(34324)
+rf.5.cv.1 <- train(x=rf.train.5, y=rf.label, method="rf", tuneLength=3, ntree=1000, trControl=ctrl.1)
+#shutdown cluster
+stopCluster(cl)
+#check out results
+rf.5.cv.1
+
+
+#the above is only slightly more pessimistic than the rf. 5 00 B prediction, but
+#not pessimistic enough. let's try 5-fold CV repeated 10 times
+#5 fold means less data to train the model, larger test size
+#Too large kk mean that only a low number of sample combinations 
+#is possible, thus limiting the number of iterations that are different.
+set.seed(5983) #Create simulated values that are reproducible.
+cv.5.folds <- createMultiFolds(rf.label, k=5, times=10)
+ctrl.2 <- trainControl(method="repeatedcv", number=5, repeats=10, index=cv.5.folds)
+cl <- makeCluster(6, type="SOCK")
+registerDoSNOW(cl)
+set.seed(89472)
+rf.5.cv.2 <- train (x=rf.train.5, y=rf.label, method="rf", tuneLength=3, ntree=1000, trControl=ctrl.2)
+
+rf.5.cv.2
+stopCluster(cl)
+
+#5-fold is better, but not enough, move to 3-fold CV repeated 10 times
+set.seed(37596)
+cv.3.folds <- createMultiFolds(rf.label, k=3, times=10 )
+ctrl.3 <-trainControl(method="repeatedCV", number=3, repeats=10, index=cv.3.folds)
+cl <- makeCluster(6, type="SOCK")
+registerDoSNOW(cl)
+set.seed(94622)
+rf.5.cv.3 <- train(x=rf.train.5, y=rf.label, method="rf", tuneLength=3, ntree=64, trControl=ctrl.3)
+
+rf.5.cv.3
+stopCluster(cl)
+  
